@@ -78,26 +78,43 @@ if not st.session_state.datos_obra.empty:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
- if st.button("📧 Enviar Excel por Correo"):
+# --- EXPORTACIÓN Y ENVÍO POR EMAIL ---
+if not st.session_state.datos_obra.empty:
+    # 1. Crear el Excel en la memoria del programa
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        st.session_state.datos_obra.to_excel(writer, index=False, sheet_name='Seguimiento')
+    excel_data = output.getvalue()
+
+    # 2. Botón para descargar el archivo [cite: 43]
+    st.download_button(
+        label="📥 Descargar Excel",
+        data=excel_data,
+        file_name=f"seguimiento_{date.today()}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    # 3. Botón para enviar por correo [cite: 44, 45]
+    if st.button("📧 Enviar Excel por Correo"):
         try:
-            # 1. Sacamos tus datos de los "Secrets" que configuraste
+            # Uso de Secrets para seguridad [cite: 46]
             email_user = st.secrets["email"]["usuario"]
             email_password = st.secrets["email"]["password"]
             email_destinatario = st.secrets["email"]["destinatario"]
 
-            # 2. Preparamos el sobre del correo
             msg = MIMEMultipart()
             msg['From'] = email_user
             msg['To'] = email_destinatario
             msg['Subject'] = f"Reporte de Obra - {nombre_trabajador}"
 
-            # 3. Metemos el archivo Excel dentro
             msg.attach(MIMEText(f"Envío de informe de: {nombre_trabajador}", 'plain'))
-            part = MIMEApplication(excel_data, Name=f"seguimiento.xlsx")
+            
+            # Adjuntar el archivo Excel generado [cite: 43]
+            part = MIMEApplication(excel_data, Name="seguimiento.xlsx")
             part['Content-Disposition'] = 'attachment; filename="seguimiento.xlsx"'
             msg.attach(part)
 
-            # 4. Lo enviamos usando el servidor de Google
+            # Conexión al servidor de correo
             server = smtplib.SMTP('smtp.gmail.com', 587)
             server.starttls()
             server.login(email_user, email_password)
