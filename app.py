@@ -78,20 +78,14 @@ if not st.session_state.datos_obra.empty:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# --- EXPORTACIÓN Y ENVÍO POR EMAIL ---
-if not st.session_state.datos_obra.empty:
-    # 1. Crear el Excel en memoria
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        st.session_state.datos_obra.to_excel(writer, index=False, sheet_name='Seguimiento')
-    excel_data = output.getvalue()
+
 
     # 2. Botón para descargar (Añadimos 'key' para evitar el error de duplicado)
-    st.download_button(
-        label="📥 Descargar Excel",
-        data=excel_data,
-        file_name=f"seguimiento_{date.today()}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+   
+      
+       
+        
+      
         key="boton_descarga_excel"  # <--- Esto evita el DuplicateElementId
     )
 
