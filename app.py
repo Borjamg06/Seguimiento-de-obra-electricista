@@ -80,24 +80,24 @@ if not st.session_state.datos_obra.empty:
 
 # --- EXPORTACIÓN Y ENVÍO POR EMAIL ---
 if not st.session_state.datos_obra.empty:
-    # 1. Crear el Excel en la memoria del programa
+    # 1. Crear el Excel en memoria
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         st.session_state.datos_obra.to_excel(writer, index=False, sheet_name='Seguimiento')
     excel_data = output.getvalue()
 
-    # 2. Botón para descargar el archivo [cite: 43]
+    # 2. Botón para descargar (Añadimos 'key' para evitar el error de duplicado)
     st.download_button(
         label="📥 Descargar Excel",
         data=excel_data,
         file_name=f"seguimiento_{date.today()}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="boton_descarga_excel"  # <--- Esto evita el DuplicateElementId
     )
 
-    # 3. Botón para enviar por correo [cite: 44, 45]
-    if st.button("📧 Enviar Excel por Correo"):
+    # 3. Botón para enviar por correo (También con su propia 'key')
+    if st.button("📧 Enviar Excel por Correo", key="boton_enviar_email"):
         try:
-            # Uso de Secrets para seguridad [cite: 46]
             email_user = st.secrets["email"]["usuario"]
             email_password = st.secrets["email"]["password"]
             email_destinatario = st.secrets["email"]["destinatario"]
@@ -109,12 +109,10 @@ if not st.session_state.datos_obra.empty:
 
             msg.attach(MIMEText(f"Envío de informe de: {nombre_trabajador}", 'plain'))
             
-            # Adjuntar el archivo Excel generado [cite: 43]
             part = MIMEApplication(excel_data, Name="seguimiento.xlsx")
             part['Content-Disposition'] = 'attachment; filename="seguimiento.xlsx"'
             msg.attach(part)
 
-            # Conexión al servidor de correo
             server = smtplib.SMTP('smtp.gmail.com', 587)
             server.starttls()
             server.login(email_user, email_password)
