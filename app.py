@@ -1,49 +1,82 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
-import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+import io
 
-# Configuración de la página
-st.set_page_config(page_title="Control de Obra Eléctrica", layout="wide")
+# --- CONFIGURACIÓN Y LOGO ---
+st.set_page_config(page_title="Seguimiento de Obra - Electricista", layout="centered")
+# Nota: Asegúrate de tener una imagen llamada 'logo_empresa.png' en tu GitHub 
+# st.image("logo_empresa.png", width=200) 
+st.title("🏗️ Seguimiento de Obra")
 
-st.title("⚡ Seguimiento de Obra - Electricista")
+# --- LISTADO DE TAREAS [cite: 11-23, 29-33] ---
+tareas_electricidad = [
+    "Trazado y marcado de cajas, tubos y cuadros", "Ejecución rozas en paredes y techos",
+    "Montaje de soportes", "Colocación tubos y conductos", "Tendido de cables",
+    "Identificación y etiquetado", "Conexionado de cables en bornes o regletas",
+    "Instalación y conexionado de mecanismos", "Fijación de carril DIN y mecanismos en cuadro",
+    "Cableado interno del cuadro eléctrico", "Configuración de equipos domóticos",
+    "Conexionado de sensores/actuadores", "Pruebas de continuidad",
+    "Pruebas de aislamiento", "Verificación de tierras", "Programación del automatismo",
+    "Pruebas de funcionamiento"
+]
 
-# Archivo de base de datos local (CSV)
-DB_FILE = "registro_obras.csv"
+# --- ESTADOS DE AVANCE [cite: 34-40] ---
+estados_avance = [
+    "Avance de la tarea en torno al 25% aprox.",
+    "Avance de la tarea en torno al 50% aprox.",
+    "Avance de la tarea en torno al 75% aprox.",
+    "OK, finalizado sin errores",
+    "Finalizado, pero con errores pendientes de corregir",
+    "Finalizado y corregidos los errores"
+]
 
-# Función para cargar datos
-def cargar_datos():
-    if os.path.exists(DB_FILE):
-        return pd.read_csv(DB_FILE)
-    return pd.DataFrame(columns=["Fecha", "Obra", "Tarea", "Estado"])
+# --- FORMULARIO DE ENTRADA [cite: 41, 42] ---
+with st.form("registro_obra"):
+    nombre_trabajador = st.text_input("Nombre del Trabajador")
+    fecha_envio = st.date_input("Fecha del informe", value=date.today())
+    tarea_seleccionada = st.selectbox("Selecciona la tarea realizada:", tareas_electricidad)
+    estado_seleccionado = st.selectbox("Estado de la tarea:", estados_avance)
+    
+    submit_button = st.form_submit_button("Registrar Tarea")
 
-df = cargar_datos()
+# --- GESTIÓN DE DATOS (EXCEL) [cite: 43] ---
+if "datos_obra" not in st.session_state:
+    st.session_state.datos_obra = pd.DataFrame(columns=["Fecha", "Trabajador", "Tarea", "Estado"])
 
-# --- FORMULARIO DE ENTRADA ---
-with st.sidebar:
-    st.header("Registrar Nueva Tarea")
-    with st.form("form_tarea"):
-        fecha = st.date_input("Fecha", date.today())
-        obra = st.text_input("Nombre de la Obra/Cliente")
-        tarea = st.selectbox("Tarea Realizada", [
-            "Cableado", "Montaje de Cuadros", "Instalación de Mecanismos", 
-            "Rozas y Tubos", "Pruebas de Continuidad", "Acometida"
-        ])
-        estado = st.radio("Estado", ["Pendiente", "En Proceso", "Finalizado"])
-        
-        btn_guardar = st.form_submit_button("Guardar Tarea")
+if submit_button:
+    nuevo_registro = {
+        "Fecha": fecha_envio,
+        "Trabajador": nombre_trabajador,
+        "Tarea": tarea_seleccionada,
+        "Estado": estado_seleccionado
+    }
+    st.session_state.datos_obra = pd.concat([st.session_state.datos_obra, pd.DataFrame([nuevo_registro])], ignore_index=True)
+    st.success("¡Registro añadido con éxito!")
 
-if btn_guardar:
-    nueva_fila = pd.DataFrame([[fecha, obra, tarea, estado]], columns=df.columns)
-    df = pd.concat([df, nueva_fila], ignore_index=True)
-    df.to_csv(DB_FILE, index=False)
-    st.success("¡Tarea guardada con éxito!")
+# Mostrar tabla actual
+st.subheader("Registros actuales")
+st.dataframe(st.session_state.datos_obra)
 
-# --- VISUALIZACIÓN ---
-st.subheader("📋 Historial de Trabajos")
-st.dataframe(df, use_container_width=True)
+# --- EXPORTACIÓN Y ENVÍO POR EMAIL [cite: 44, 45] ---
+if not st.session_state.datos_obra.empty:
+    # Crear Excel en memoria
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        st.session_state.datos_obra.to_excel(writer, index=False, sheet_name='Seguimiento')
+    excel_data = output.getvalue()
 
-# Métricas rápidas
-col1, col2 = st.columns(2)
-col1.metric("Total Tareas", len(df))
-col2.metric("Finalizadas", len(df[df["Estado"] == "Finalizado"]))
+    st.download_button(
+        label="📥 Descargar Excel",
+        data=excel_data,
+        file_name=f"seguimiento_{date.today()}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    if st.button("📧 Enviar Excel por Correo"):
+        # NOTA: Necesitarás configurar Secrets en Streamlit para esto 
+        st.info("Configura las credenciales de correo en Streamlit Cloud para activar esta función.")
