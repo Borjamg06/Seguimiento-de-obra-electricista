@@ -3,8 +3,9 @@ import pandas as pd
 from datetime import date
 import smtplib
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
-from email import encoders
 import io
 
 # --- CONFIGURACIÓN Y LOGO ---
@@ -77,6 +78,32 @@ if not st.session_state.datos_obra.empty:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    if st.button("📧 Enviar Excel por Correo"):
-        # NOTA: Necesitarás configurar Secrets en Streamlit para esto 
-        st.info("Configura las credenciales de correo en Streamlit Cloud para activar esta función.")
+ if st.button("📧 Enviar Excel por Correo"):
+        try:
+            # 1. Sacamos tus datos de los "Secrets" que configuraste
+            email_user = st.secrets["email"]["usuario"]
+            email_password = st.secrets["email"]["password"]
+            email_destinatario = st.secrets["email"]["destinatario"]
+
+            # 2. Preparamos el sobre del correo
+            msg = MIMEMultipart()
+            msg['From'] = email_user
+            msg['To'] = email_destinatario
+            msg['Subject'] = f"Reporte de Obra - {nombre_trabajador}"
+
+            # 3. Metemos el archivo Excel dentro
+            msg.attach(MIMEText(f"Envío de informe de: {nombre_trabajador}", 'plain'))
+            part = MIMEApplication(excel_data, Name=f"seguimiento.xlsx")
+            part['Content-Disposition'] = 'attachment; filename="seguimiento.xlsx"'
+            msg.attach(part)
+
+            # 4. Lo enviamos usando el servidor de Google
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(email_user, email_password)
+            server.send_message(msg)
+            server.quit()
+
+            st.success("✅ ¡Correo enviado con éxito a la profesora!")
+        except Exception as e:
+            st.error(f"Error al enviar: {e}")
