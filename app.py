@@ -63,33 +63,24 @@ if submit_button:
 st.subheader("Registros actuales")
 st.dataframe(st.session_state.datos_obra)
 
-# --- EXPORTACIÓN Y ENVÍO POR EMAIL [cite: 44, 45] ---
+# --- EXPORTACIÓN Y ENVÍO POR EMAIL ---
 if not st.session_state.datos_obra.empty:
-    # Crear Excel en memoria
+    # 1. Crear el Excel en memoria
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         st.session_state.datos_obra.to_excel(writer, index=False, sheet_name='Seguimiento')
     excel_data = output.getvalue()
 
+    # 2. Botón para descargar (con key para evitar errores)
     st.download_button(
         label="📥 Descargar Excel",
         data=excel_data,
         file_name=f"seguimiento_{date.today()}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="boton_descarga_excel"
     )
 
-
-
-    # 2. Botón para descargar (Añadimos 'key' para evitar el error de duplicado)
-   
-      
-       
-        
-      
-        key="boton_descarga_excel"  # <--- Esto evita el DuplicateElementId
-    )
-
-    # 3. Botón para enviar por correo (También con su propia 'key')
+    # 3. Botón para enviar por correo
     if st.button("📧 Enviar Excel por Correo", key="boton_enviar_email"):
         try:
             email_user = st.secrets["email"]["usuario"]
